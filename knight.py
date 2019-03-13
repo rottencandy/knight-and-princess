@@ -20,7 +20,7 @@ def possible_choices(array):
     Return possible choices(within bounds) of directions from given state.
     array: 1x4 array of a single state's directions
     '''
-    return [i.item() for i in np.where(~np.isnan(array))[0]]
+    return [i for i in np.where(~np.isnan(array))[0]]
 
 def next_state(state, direction, colsize):
     '''
@@ -30,13 +30,14 @@ def next_state(state, direction, colsize):
     colsize: width of the board
     '''
     if direction == 0:
-        return state - colsize - 1
+        next = state - (colsize + 1)
     elif direction == 1:
-        return state + 1
+        next = state + 1
     elif direction == 2:
-        return state + colsize + 1
+        next = state + colsize + 1
     else:
-        return state - 1
+        next = state - 1
+    return next
 
 
 class Board:
@@ -80,7 +81,7 @@ class Qtable:
         self.direction = 0
         self.acc_cost = 0
         # width of board (not qtable)
-        self.colsize = board.tiles.shape[0] - 1
+        self.colsize = board.tiles.shape[1] - 1
         self.table = np.zeros((board.tiles.size, 4))
 
         # setting illegal(outside bounds) choices to NaN
@@ -97,16 +98,30 @@ class Qtable:
         '''
         Calculate Q value using the Bellman Ford algorithm
         '''
-        self.table[self.cur_state, self.direction] += self.learn_rate * (self.board.reward[two_dim(self.cur_state, self.colsize)[0]][two_dim(self.cur_state, self.colsize)[1]] + self.discount * np.nanmax(self.table[self.next_state]) - self.table[self.cur_state, self.direction])
+        self.table[self.cur_state, self.direction] += \
+            self.learn_rate * (
+                self.board.reward[
+                    two_dim(self.cur_state, self.colsize)[0],
+                    two_dim(self.cur_state, self.colsize)[1]] +
+                self.discount *
+                np.nanmax(self.table[self.next_state]) -
+                self.table[self.cur_state, self.direction])
 
-    def train(self, iterations, learn_rate=0.1, discount=0.9, epsilon=1.0, decay=True):
+    def train(
+            self,
+            iterations,
+            learn_rate=0.1,
+            discount=0.9,
+            epsilon=1.0,
+            decay=True):
         '''
         Train the table.
         iterations: number of iterations
         learn_rate: the learning rate
         discount: the delta discount
         epsilon: starting value of epsilon parameter
-        decay: boolean value indicating whether to enable epsilon decay.(True by default)
+        decay: boolean value indicating whether to enable epsilon 
+            decay.(True by default)
         '''
         self.learn_rate = learn_rate
         self.discount = discount
@@ -122,19 +137,24 @@ class Qtable:
 
             else:
                 # explore
-                self.direction = int(random.choice(possible_choices(self.table[self.cur_state])))
+                self.direction = int(random.choice(
+                    possible_choices(self.table[self.cur_state])))
 
             self.acc_cost += self.table[self.cur_state, self.direction]
-            self.next_state = next_state(self.cur_state, self.direction, self.colsize)
+            self.next_state = next_state(
+                self.cur_state,
+                self.direction,
+                self.colsize)
             self.calculate_q()
+            self.print_info(i)
+
             self.cur_state = self.next_state
             epsilon -= epsilon_decay
 
-            # Reset to original state if game finishes
+            # Reset to original state if game finishes(win or lose)
             if self.acc_cost < -100 or self.acc_cost > 90:
                 self.cur_state = 0
                 self.acc_cost = 0
-            self.print_info(i)
 
     def print_info(self, i):
         print('Training iteration ', i)
@@ -163,7 +183,7 @@ class Qtable:
             # if player gets stuck in loop
             if cost < -10:
                 print('Ended game due to Bad performance,\n'
-                      'Please retrain with different parameters(epsilon/learning rate/discount).')
+                      'Please retrain with different parameters.')
                 break
             print(self.board)
 
